@@ -183,7 +183,7 @@ bind_rows(
   theme_classic(
     base_family = "Times"
   )
-ggsave("estimates_semielasticities.pdf", width = 160, height = 80, units = "mm")
+#ggsave("estimates_semielasticities.pdf", width = 160, height = 80, units = "mm")
 
 #### Table 3: Placebo ####
 
