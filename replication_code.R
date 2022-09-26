@@ -4,6 +4,7 @@ library(fixest)
 library(Formula)
 library(lfe)
 library(modelsummary)
+library(broom)
 
 rm(list = ls())
 
@@ -99,7 +100,8 @@ modell <- list(
 ) %>% map(as.formula)
 
 # Models (1)-(3)
-modell %>% 
+tab2A <- 
+  modell %>% 
   map(
     feglm,
     data = rdata_other,
@@ -107,8 +109,9 @@ modell %>%
     offset = ~log(POC_HLASU),
     family = quasipoisson,
     nthreads = 8
-  ) %>% 
-  etable(digits = 3)
+  )
+
+tab2A %>% etable(digits = 3)
 
 # Models (4)-(6)
 rdata_other_p3 <- rdata %>% 
@@ -125,16 +128,62 @@ rdata_other_p3 <- rdata %>%
   ungroup() %>% 
   filter(n == 2)
 
-modell %>% 
+tab2B <-
+  modell %>% 
   map(
     feglm,
     data = rdata_other_p3,
     cluster = "ballot",
     offset = ~log(POC_HLASU),
     family = quasipoisson,
-    nthreads = 12
+    nthreads = 8
+  ) 
+
+tab2B %>% etable(digits = 3)
+
+get_ci <- function(x){
+  out <- coefplot(x)
+  as_tibble(out$prms)
+}
+
+##### Figure X #####
+bind_rows(
+  tab2A %>% map_dfr(get_ci),
+  tab2B %>% map_dfr(get_ci)
+) %>% 
+  select(
+    estimate, ci_low, ci_high
   ) %>% 
-  etable(digits = 3)
+  mutate(
+    across(
+      everything(),
+      function(x){
+        (100*(exp(x)-1))
+      }
+    )
+  ) %>% 
+  mutate(
+    spec = str_c("(",row_number(),")")
+  ) %>% 
+  ggplot(
+    aes(x = spec)
+  ) +
+  geom_linerange(
+    aes(ymin = ci_low, ymax = ci_high)
+  ) +
+  scale_y_continuous(
+    "Reverse side (=1, semi-elasticity, %)\npoint estimates and 95% conf. int."
+  ) +
+  scale_x_discrete(
+    "Regression specification"
+  ) +
+  geom_point(
+    aes(y = estimate)
+  ) +
+  theme_classic(
+    base_family = "Times"
+  )
+ggsave("estimates_semielasticities.pdf", width = 160, height = 80, units = "mm")
 
 #### Table 3: Placebo ####
 
